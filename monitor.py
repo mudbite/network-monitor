@@ -1,29 +1,27 @@
-import subprocess
+import nmap
 import datetime
 import time
 
-devices = ["google.com", "8.8.8.8", "192.168.1.1"]
-
-def ping(host):
-    result = subprocess.run(
-        ["ping", "-c", "1", host],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
-    return result.returncode == 0
-
-def monitor():
+def scan_network():
+    scanner = nmap.PortScanner()
+    network = "192.168.1.0/24"
+    
     while True:
-        with open("log.txt", "a") as log:
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f"\n--- Scan at {timestamp} ---")
-            for device in devices:
-                status = "ONLINE" if ping(device) else "OFFLINE"
-                line = f"{timestamp} | {device} | {status}"
-                print(line)
-                log.write(line + "\n")
-        print("\nNext scan in 30 seconds... (Ctrl+C to stop)")
-        time.sleep(30)
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f"\n--- Network Scan at {timestamp} ---")
+        print(f"Scanning {network}...")
+        
+        scanner.scan(hosts=network, arguments="-sn")
+        
+        hosts = scanner.all_hosts()
+        if hosts:
+            for host in hosts:
+                state = scanner[host].state()
+                print(f"Device: {host} — {state}")
+        else:
+            print("No devices found. Connect to WiFi first.")
+        
+        print("\nNext scan in 60 seconds... (Volume Down + C to stop)")
+        time.sleep(60)
 
-monitor()
-
+scan_network()
