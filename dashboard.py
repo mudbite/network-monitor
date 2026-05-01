@@ -1,43 +1,46 @@
 from flask import Flask, render_template_string
 import datetime
-import subprocess
+import nmap
 
 app = Flask(__name__)
 
-devices = ["google.com", "8.8.8.8", "192.168.1.1"]
-
-def ping(host):
-    result = subprocess.run(
-        ["ping", "-c", "1", host],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
-    return result.returncode == 0
+def scan_network():
+    try:
+        scanner = nmap.PortScanner()
+        scanner.scan(hosts="192.168.1.0/24", arguments="-sn")
+        found = []
+        for host in scanner.all_hosts():
+            found.append({"ip": host, "state": scanner[host].state()})
+        return found
+    except:
+        return []
 
 @app.route("/")
 def index():
-    results = []
-    for device in devices:
-        status = "ONLINE" if ping(device) else "OFFLINE"
-        color = "green" if status == "ONLINE" else "red"
-        results.append({"device": device, "status": status, "color": color})
-    
+    scanned = scan_network()
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
+
     html = """
     <html>
     <head><title>Network Monitor</title></head>
     <body style="font-family:arial; padding:20px; background:#111; color:white;">
+    
     <h1>Network Monitor</h1>
     <p>Last scan: {{ timestamp }}</p>
-    {% for r in results %}
-    <p style="color:{{ r.color }}">{{ r.device }} — {{ r.status }}</p>
-    {% endfor %}
+    
+    <h2>Local Network Devices</h2>
+    {% if scanned %}
+        {% for s in scanned %}
+        <p style="color:lightblue">{{ s.ip }} — {{ s.state }}</p>
+        {% endfor %}
+    {% else %}
+        <p style="color:gray">No devices found — connect to WiFi to scan local network</p>
+    {% endif %}
+    
     </body>
     </html>
     """
-    return render_template_string(html, results=results, timestamp=timestamp)
+    return render_template_string(html, scanned=scanned, timestamp=timestamp)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-
